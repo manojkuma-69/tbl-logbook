@@ -6,7 +6,14 @@ import sqlite3
 import os
 import base64
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
+```
+
+Then scroll down and click **Commit changes**.
+
+Railway will automatically redeploy in about 1 minute. Then open:
+```
+https://web-production-4156f.up.railway.app
 app.secret_key = 'change-this-secret-key-in-production'
 import os
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///trading_journal_v3.db')
