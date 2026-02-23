@@ -1,7 +1,0 @@
-{% if session.get('user_id') %}
-TBL_logbook
-🏠 Dashboard ➕ Add Trade 📋 History 📊 Analytics 📝 Weekly Review ⚙️ Settings 🚪 Logout
-{% endif %}
-{% with messages = get_flashed_messages(with_categories=true) %} {% if messages %} {% for category, message in messages %}
-{{ message }}
-{% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock %}
