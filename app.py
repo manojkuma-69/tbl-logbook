@@ -16,7 +16,7 @@ Railway will automatically redeploy in about 1 minute. Then open:
 https://web-production-4156f.up.railway.app
 app.secret_key = 'change-this-secret-key-in-production'
 import os
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///trading_journal_v3.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///trading_journal_v3.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
