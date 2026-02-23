@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>🏠 Dashboard</h2>
+
+    <!-- TODAY'S P&L -->
+    <div class="today-pnl-card">
+        <div class="pnl-left">
+            <div class="pnl-label">TODAY'S PERFORMANCE</div>
+            <div class="pnl-value {{ 'positive' if stats.today_pnl > 0 else 'negative' if stats.today_pnl < 0 else '' }}">
+                {{ stats.today_points|round(1) }} pts
+            </div>
+            <div class="pnl-rupees {{ 'positive' if stats.today_pnl > 0 else 'negative' if stats.today_pnl < 0 else '' }}">
+                ₹{{ stats.today_pnl|round(2) }}
+            </div>
+            <div class="pnl-meta">📅 {{ stats.today_trades }} trade{{ 's' if stats.today_trades != 1 }} today</div>
+        </div>
+        <div class="pnl-right">
+            <div class="pnl-trades-badge">
+                🎯 {{ stats.today_trades }} / 2 Trades Used
+            </div>
+        </div>
+    </div>
+
+    <!-- PERIOD STATS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background: linear-gradient(#6366F1, #8B5CF6);"></div>
+            <div class="stat-label">📅 This Week</div>
+            <div class="stat-points">{{ stats.week_points|round(1) }} pts</div>
+            <div class="stat-rupees {{ 'positive' if stats.week_pnl > 0 else 'negative' if stats.week_pnl < 0 else '' }}">
+                ₹{{ stats.week_pnl|round(2) }}
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background: linear-gradient(#0EA5E9, #06B6D4);"></div>
+            <div class="stat-label">🗓️ This Month</div>
+            <div class="stat-points">{{ stats.month_points|round(1) }} pts</div>
+            <div class="stat-rupees {{ 'positive' if stats.month_pnl > 0 else 'negative' if stats.month_pnl < 0 else '' }}">
+                ₹{{ stats.month_pnl|round(2) }}
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background: linear-gradient(#10B981, #34D399);"></div>
+            <div class="stat-label">📈 Trade Progress</div>
+            <div class="stat-progress">{{ stats.total_trades }}/{{ stats.target_trades }}</div>
+            <div class="stat-meta">trades logged</div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ [[(stats.total_trades / stats.target_trades * 100)|round(0), 0]|max, 100]|min }}%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKTEST BASELINE -->
+    {% if backtest %}
+    <div class="backtest-section">
+        <h3>🧪 Backtest Baseline (Jan 23 – Feb 12)</h3>
+        <div class="backtest-grid">
+            <div class="backtest-item">
+                <span class="label">Total Trades</span>
+                <span class="value">{{ backtest.total_trades }}</span>
+            </div>
+            <div class="backtest-item">
+                <span class="label">Win Rate</span>
+                <span class="value">{{ backtest.win_rate }}%</span>
+            </div>
+            <div class="backtest-item">
+                <span class="label">Avg R:R</span>
+                <span class="value">{{ backtest.avg_rr }}:1</span>
+            </div>
+            <div class="backtest-item">
+                <span class="label">Expectancy</span>
+                <span class="value">+{{ backtest.expectancy }} pts</span>
+            </div>
+            <div class="backtest-item">
+                <span class="label">Total Points</span>
+                <span class="value">+{{ backtest.total_points }}</span>
+            </div>
+            <div class="backtest-item highlight">
+                <span class="label">🔁 Re-Entry Win Rate</span>
+                <span class="value success">{{ backtest.reentry_win_rate }}%</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- QUICK ACTIONS -->
+    <div class="action-buttons">
+        <a href="{{ url_for('add_trade') }}" class="btn-primary btn-large">➕ Add Trade</a>
+        <a href="{{ url_for('trade_history') }}" class="btn-secondary btn-large">📋 View History</a>
+        <a href="{{ url_for('analytics') }}" class="btn-secondary btn-large">📊 Analytics</a>
+        <a href="{{ url_for('weekly_review') }}" class="btn-secondary btn-large">📝 Weekly Review</a>
+    </div>
+</div>
+{% endblock %}

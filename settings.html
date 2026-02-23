@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="settings">
+    <h2>⚙️ Settings</h2>
+
+    <form method="POST" class="settings-form">
+        <div class="form-section">
+            <h3>📏 Trading Rules</h3>
+
+            <div class="form-group">
+                <label>🔢 Max Trades Per Day</label>
+                <input type="number" name="max_trades_per_day"
+                       value="{{ settings.max_trades_per_day }}" min="1" max="5">
+                <small>Your current limit: 2 trades per day</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>📖 Your ORB System Reference</h3>
+            <div class="system-info">
+                <p>⏰ <strong>Alert Candle:</strong> 9:25–9:30 AM (5-min candle)</p>
+                <p>🚀 <strong>Entry:</strong> After 9:30 AM, on breakout of alert candle high/low</p>
+                <p>🎯 <strong>Strike:</strong> Nearest strike, current week expiry</p>
+                <p>📦 <strong>Lot Size:</strong> Fixed at 1 lot only</p>
+                <p>✅ <strong>At 1:1 R:R:</strong> Move SL to entry (breakeven)</p>
+                <p>✅ <strong>At 1:2 R:R:</strong> Move SL to +1R</p>
+                <p>🏆 <strong>At 1:3 R:R:</strong> Book full profit — STOP for the day</p>
+                <p>🔁 <strong>Re-Entry:</strong> Take opposite direction if SL hit — <strong style="color: var(--success);">75% Win Rate in backtest!</strong></p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>👤 Account Info</h3>
+            <div class="system-info">
+                <p>📧 <strong>Email:</strong> trader@tbl.com</p>
+                <p>🔑 <strong>Password:</strong> Change via admin panel</p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">💾 Save Settings</button>
+            <a href="{{ url_for('dashboard') }}" class="btn-secondary">← Back to Dashboard</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
