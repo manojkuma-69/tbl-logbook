@@ -7,16 +7,8 @@ import os
 import base64
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-```
-
-Then scroll down and click **Commit changes**.
-
-Railway will automatically redeploy in about 1 minute. Then open:
-```
-https://web-production-4156f.up.railway.app
-app.secret_key = 'change-this-secret-key-in-production'
-import os
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///trading_journal_v3.db'
+app.secret_key = 'tbl2026xK9mPqR7vNjW3'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///trading_journal.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
@@ -27,10 +19,6 @@ LOT_VALUES = {
     'Bank Nifty': 30,
     'Sensex': 20
 }
-
-# ─────────────────────────────────────────────
-# MODELS
-# ─────────────────────────────────────────────
 
 class User(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
@@ -102,10 +90,6 @@ class Settings(db.Model):
     max_trades_per_day = db.Column(db.Integer, default=2)
     custom_strategies  = db.Column(db.Text)
 
-# ─────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────
-
 def calculate_pnl(entry_premium, exit_premium, direction, lot_size, index):
     points     = exit_premium - entry_premium
     lot_value  = LOT_VALUES.get(index, 50)
@@ -127,45 +111,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
-
-def auto_migrate():
-    """
-    Safely adds any new columns to the existing database
-    without deleting any data. Runs automatically on every startup.
-    """
-    possible_paths = [
-        os.path.join(os.path.dirname(__file__), 'instance', 'trading_journal_v3.db'),
-        os.path.join(os.path.dirname(__file__), 'trading_journal_v3.db'),
-        'instance/trading_journal_v3.db',
-        'trading_journal_v3.db',
-    ]
-    db_path = None
-    for p in possible_paths:
-        if os.path.exists(p):
-            db_path = p
-            break
-
-    if not db_path:
-        return  # No DB yet — create_all() will handle fresh creation
-
-    try:
-        conn   = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(trade)")
-        existing = [row[1] for row in cursor.fetchall()]
-
-        if 'chart_url' not in existing:
-            cursor.execute("ALTER TABLE trade ADD COLUMN chart_url VARCHAR(500)")
-            print("✓ Migration: added chart_url column to existing database")
-
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Migration info: {e}")
-
-# ─────────────────────────────────────────────
-# ROUTES — AUTH
-# ─────────────────────────────────────────────
 
 @app.route('/')
 def index():
@@ -190,10 +135,6 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-# ─────────────────────────────────────────────
-# ROUTES — DASHBOARD
-# ─────────────────────────────────────────────
-
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -201,29 +142,23 @@ def dashboard():
     today       = datetime.now().date()
     week_start  = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
-
     today_trades = Trade.query.filter_by(user_id=user_id, date=today).all()
     week_trades  = Trade.query.filter(Trade.user_id == user_id, Trade.date >= week_start).all()
     month_trades = Trade.query.filter(Trade.user_id == user_id, Trade.date >= month_start).all()
     total_trades = Trade.query.filter_by(user_id=user_id).count()
     backtest     = BacktestData.query.filter_by(user_id=user_id).first()
-
     stats = {
         'today_trades' : len(today_trades),
         'today_points' : round(sum(t.points_captured for t in today_trades), 1),
-        'today_pnl'    : round(sum(t.pnl_rupees     for t in today_trades), 2),
-        'week_points'  : round(sum(t.points_captured for t in week_trades),  1),
-        'week_pnl'     : round(sum(t.pnl_rupees     for t in week_trades),  2),
+        'today_pnl'    : round(sum(t.pnl_rupees for t in today_trades), 2),
+        'week_points'  : round(sum(t.points_captured for t in week_trades), 1),
+        'week_pnl'     : round(sum(t.pnl_rupees for t in week_trades), 2),
         'month_points' : round(sum(t.points_captured for t in month_trades), 1),
-        'month_pnl'    : round(sum(t.pnl_rupees     for t in month_trades), 2),
+        'month_pnl'    : round(sum(t.pnl_rupees for t in month_trades), 2),
         'total_trades' : total_trades,
         'target_trades': 30,
     }
     return render_template('dashboard.html', stats=stats, backtest=backtest)
-
-# ─────────────────────────────────────────────
-# ROUTES — ADD TRADE
-# ─────────────────────────────────────────────
 
 @app.route('/add_trade', methods=['GET', 'POST'])
 @login_required
@@ -231,7 +166,6 @@ def add_trade():
     user_id     = session['user_id']
     today       = datetime.now().date()
     today_count = Trade.query.filter_by(user_id=user_id, date=today).count()
-
     if request.method == 'POST':
         try:
             trade_date    = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
@@ -244,81 +178,53 @@ def add_trade():
             exit_premium  = float(request.form['exit_premium'])
             sl_premium    = float(request.form['initial_sl_premium'])
             lot_size      = 1
-
             points, pnl = calculate_pnl(entry_premium, exit_premium, direction, lot_size, index)
             risk_points = abs(entry_premium - sl_premium)
             rr          = calculate_rr(entry_premium, exit_premium, sl_premium)
-
             result = 'Win' if points > 0 else ('Loss' if points < 0 else 'BE')
-
             chart_image = None
             file = request.files.get('chart_file')
             if file and file.filename:
                 chart_image = base64.b64encode(file.read()).decode('utf-8')
-
             chart_url = request.form.get('chart_url', '').strip()
-
             trade = Trade(
-                user_id            = user_id,
-                date               = trade_date,
-                entry_time         = entry_time,
-                exit_time          = exit_time,
-                index              = index,
-                direction          = direction,
-                strike             = strike,
-                entry_premium      = entry_premium,
-                exit_premium       = exit_premium,
-                lot_size           = lot_size,
-                initial_sl_premium = sl_premium,
-                initial_risk_points= risk_points,
-                points_captured    = round(points, 2),
-                pnl_rupees         = round(pnl, 2),
-                rr_achieved        = rr,
-                result             = result,
-                hit_1to1           = 'hit_1to1'          in request.form,
-                sl_moved_to_entry  = 'sl_moved_to_entry' in request.form,
-                hit_1to2           = 'hit_1to2'          in request.form,
-                sl_moved_to_1r     = 'sl_moved_to_1r'    in request.form,
-                hit_1to3           = 'hit_1to3'          in request.form,
-                booked_at_1to3     = 'booked_at_1to3'    in request.form,
-                exit_reason        = request.form.get('exit_reason'),
-                is_reentry         = 'is_reentry'        in request.form,
-                linked_trade_id    = int(request.form['linked_trade_id']) if request.form.get('linked_trade_id') else None,
-                followed_all_rules = 'followed_all_rules' in request.form,
-                emotion_before     = request.form.get('emotion_before'),
-                emotion_during     = request.form.get('emotion_during'),
-                emotion_after      = request.form.get('emotion_after'),
-                mistakes           = request.form.get('mistakes', ''),
-                lesson_learned     = request.form.get('lesson_learned', ''),
-                chart_image        = chart_image,
-                chart_url          = chart_url,
+                user_id=user_id, date=trade_date, entry_time=entry_time,
+                exit_time=exit_time, index=index, direction=direction,
+                strike=strike, entry_premium=entry_premium, exit_premium=exit_premium,
+                lot_size=lot_size, initial_sl_premium=sl_premium,
+                initial_risk_points=risk_points, points_captured=round(points, 2),
+                pnl_rupees=round(pnl, 2), rr_achieved=rr, result=result,
+                hit_1to1='hit_1to1' in request.form,
+                sl_moved_to_entry='sl_moved_to_entry' in request.form,
+                hit_1to2='hit_1to2' in request.form,
+                sl_moved_to_1r='sl_moved_to_1r' in request.form,
+                hit_1to3='hit_1to3' in request.form,
+                booked_at_1to3='booked_at_1to3' in request.form,
+                exit_reason=request.form.get('exit_reason'),
+                is_reentry='is_reentry' in request.form,
+                linked_trade_id=int(request.form['linked_trade_id']) if request.form.get('linked_trade_id') else None,
+                followed_all_rules='followed_all_rules' in request.form,
+                emotion_before=request.form.get('emotion_before'),
+                emotion_during=request.form.get('emotion_during'),
+                emotion_after=request.form.get('emotion_after'),
+                mistakes=request.form.get('mistakes', ''),
+                lesson_learned=request.form.get('lesson_learned', ''),
+                chart_image=chart_image, chart_url=chart_url,
             )
-
             db.session.add(trade)
             db.session.commit()
             flash('✅ Trade saved successfully!', 'success')
             return redirect(url_for('trade_history'))
-
         except Exception as e:
             db.session.rollback()
             flash(f'❌ Error saving trade: {str(e)}', 'error')
-
     return render_template('add_trade.html', today=today, today_count=today_count)
-
-# ─────────────────────────────────────────────
-# ROUTES — TRADE HISTORY
-# ─────────────────────────────────────────────
 
 @app.route('/trade_history')
 @login_required
 def trade_history():
-    trades = Trade.query.filter_by(user_id=session['user_id']) \
-                        .order_by(Trade.date.desc(), Trade.entry_time.desc()).all()
+    trades = Trade.query.filter_by(user_id=session['user_id']).order_by(Trade.date.desc()).all()
     return render_template('trade_history.html', trades=trades)
-
-# ─────────────────────────────────────────────
-# ROUTES — TRADE DETAIL
-# ─────────────────────────────────────────────
 
 @app.route('/trade/<int:trade_id>')
 @login_required
@@ -326,10 +232,6 @@ def trade_detail(trade_id):
     trade        = Trade.query.filter_by(id=trade_id, user_id=session['user_id']).first_or_404()
     linked_trade = Trade.query.get(trade.linked_trade_id) if trade.linked_trade_id else None
     return render_template('trade_detail.html', trade=trade, linked_trade=linked_trade)
-
-# ─────────────────────────────────────────────
-# ROUTES — DELETE TRADE
-# ─────────────────────────────────────────────
 
 @app.route('/trade/<int:trade_id>/delete', methods=['POST'])
 @login_required
@@ -340,26 +242,18 @@ def delete_trade(trade_id):
     flash('🗑️ Trade deleted.', 'success')
     return redirect(url_for('trade_history'))
 
-# ─────────────────────────────────────────────
-# ROUTES — ANALYTICS
-# ─────────────────────────────────────────────
-
 @app.route('/analytics')
 @login_required
 def analytics():
     user_id  = session['user_id']
     trades   = Trade.query.filter_by(user_id=user_id).order_by(Trade.date).all()
     backtest = BacktestData.query.filter_by(user_id=user_id).first()
-
     if not trades:
-        return render_template('analytics.html', trades=[], stats={},
-                               backtest=backtest, cumulative_points=[])
-
+        return render_template('analytics.html', trades=[], stats={}, backtest=backtest, cumulative_points=[])
     wins      = [t for t in trades if t.result == 'Win']
     losses    = [t for t in trades if t.result == 'Loss']
     reentries = [t for t in trades if t.is_reentry]
     re_wins   = [t for t in reentries if t.result == 'Win']
-
     total      = len(trades)
     win_rate   = round(len(wins) / total * 100, 1) if total else 0
     avg_rr     = round(sum(t.rr_achieved for t in wins) / len(wins), 2) if wins else 0
@@ -367,28 +261,16 @@ def analytics():
     avg_loss   = sum(t.points_captured for t in losses) / len(losses) if losses else 0
     expectancy = round((win_rate / 100 * avg_win) + ((1 - win_rate / 100) * avg_loss), 1)
     re_wr      = round(len(re_wins) / len(reentries) * 100, 1) if reentries else 0
-
     stats = {
-        'total_trades'    : total,
-        'win_rate'        : win_rate,
-        'avg_rr'          : avg_rr,
-        'total_points'    : round(sum(t.points_captured for t in trades), 1),
-        'expectancy'      : expectancy,
-        'reentry_count'   : len(reentries),
-        'reentry_win_rate': re_wr,
+        'total_trades': total, 'win_rate': win_rate, 'avg_rr': avg_rr,
+        'total_points': round(sum(t.points_captured for t in trades), 1),
+        'expectancy': expectancy, 'reentry_count': len(reentries), 'reentry_win_rate': re_wr,
     }
-
     cumulative, running = [], 0
     for t in trades:
         running += t.points_captured
         cumulative.append({'date': t.date.strftime('%d %b'), 'points': round(running, 1)})
-
-    return render_template('analytics.html', trades=trades, stats=stats,
-                           backtest=backtest, cumulative_points=cumulative)
-
-# ─────────────────────────────────────────────
-# ROUTES — WEEKLY REVIEW
-# ─────────────────────────────────────────────
+    return render_template('analytics.html', trades=trades, stats=stats, backtest=backtest, cumulative_points=cumulative)
 
 @app.route('/weekly_review', methods=['GET', 'POST'])
 @login_required
@@ -396,12 +278,7 @@ def weekly_review():
     user_id    = session['user_id']
     today      = datetime.now().date()
     week_start = today - timedelta(days=today.weekday())
-
-    week_trades = Trade.query.filter(
-        Trade.user_id == user_id,
-        Trade.date   >= week_start
-    ).all()
-
+    week_trades = Trade.query.filter(Trade.user_id == user_id, Trade.date >= week_start).all()
     wins  = [t for t in week_trades if t.result == 'Win']
     total = len(week_trades)
     stats = {
@@ -409,26 +286,19 @@ def weekly_review():
         'net_points'  : round(sum(t.points_captured for t in week_trades), 1),
         'win_rate'    : round(len(wins) / total * 100, 1) if total else 0,
     }
-
     if request.method == 'POST':
         review = WeeklyReview(
-            user_id            = user_id,
-            week_start         = week_start,
-            best_trade_reason  = request.form.get('best_trade_reason'),
-            worst_trade_reason = request.form.get('worst_trade_reason'),
-            main_mistake       = request.form.get('main_mistake'),
-            next_week_focus    = request.form.get('next_week_focus'),
+            user_id=user_id, week_start=week_start,
+            best_trade_reason=request.form.get('best_trade_reason'),
+            worst_trade_reason=request.form.get('worst_trade_reason'),
+            main_mistake=request.form.get('main_mistake'),
+            next_week_focus=request.form.get('next_week_focus'),
         )
         db.session.add(review)
         db.session.commit()
         flash('✅ Weekly review saved!', 'success')
         return redirect(url_for('dashboard'))
-
     return render_template('weekly_review.html', stats=stats)
-
-# ─────────────────────────────────────────────
-# ROUTES — SETTINGS
-# ─────────────────────────────────────────────
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
@@ -439,48 +309,27 @@ def settings():
         s = Settings(user_id=user_id)
         db.session.add(s)
         db.session.commit()
-
     if request.method == 'POST':
         s.max_trades_per_day = int(request.form.get('max_trades_per_day', 2))
         db.session.commit()
         flash('✅ Settings saved!', 'success')
         return redirect(url_for('settings'))
-
     return render_template('settings.html', settings=s)
 
-# ─────────────────────────────────────────────
-# DB INIT
-# ─────────────────────────────────────────────
-
-def init_db():
-    with app.app_context():
-        auto_migrate()   # Add missing columns to existing DB first
-        db.create_all()  # Create any tables that don't exist yet
-
-        if not User.query.filter_by(email='trader@tbl.com').first():
-            user = User(
-                email         = 'trader@tbl.com',
-                password_hash = generate_password_hash('trader123')
-            )
-            db.session.add(user)
-            db.session.commit()
-            print("✓ User created: trader@tbl.com / trader123")
-
-            backtest = BacktestData(
-                user_id         = user.id,
-                total_trades    = 18,
-                win_rate        = 50.0,
-                avg_rr          = 3.83,
-                total_points    = 1593,
-                expectancy      = 88.5,
-                reentry_count   = 4,
-                reentry_wins    = 3,
-                reentry_win_rate= 75.0
-            )
-            db.session.add(backtest)
-            db.session.commit()
-            print("✓ Backtest data loaded")
+with app.app_context():
+    db.create_all()
+    if not User.query.filter_by(email='trader@tbl.com').first():
+        user = User(email='trader@tbl.com', password_hash=generate_password_hash('trader123'))
+        db.session.add(user)
+        db.session.commit()
+        backtest = BacktestData(
+            user_id=user.id, total_trades=18, win_rate=50.0,
+            avg_rr=3.83, total_points=1593, expectancy=88.5,
+            reentry_count=4, reentry_wins=3, reentry_win_rate=75.0
+        )
+        db.session.add(backtest)
+        db.session.commit()
 
 if __name__ == '__main__':
-    init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
