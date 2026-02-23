@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="add-trade">
+    <h2>➕ Add Trade</h2>
+
+    {% if today_count >= 2 %}
+    <div class="alert alert-warning">
+        ⚠️ <strong>You've already taken {{ today_count }} trades today.</strong>
+        Your max is 2 trades/day. Consider stopping for today.
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" class="trade-form">
+
+        <!-- ✅ PRE-TRADE CHECKLIST -->
+        <div class="checklist-section">
+            <h3>✅ Pre-Trade Checklist — Complete Before Entry</h3>
+            <div class="checklist-instructions">All boxes must be checked before proceeding. This enforces your ORB system rules.</div>
+
+            <div class="checklist-grid">
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>⏰ Time is 9:30 AM or later (alert candle 9:25–9:30 completed)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>📌 Alert candle high/low noted</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>🚀 Price broke above high (CE) OR below low (PE)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>🎯 Strike selected (nearest strike, current week expiry)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>📝 Entry price and SL noted</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>🔢 This is trade #1 or #2 today (max 2 allowed)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>🧘 I am calm — not FOMO/revenge trading</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" required>
+                    <span>📸 Chart screenshot / link ready</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 1. TRADE IDENTIFICATION -->
+        <div class="form-section">
+            <h3>🗂️ 1. Trade Identification</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📅 Date *</label>
+                    <input type="date" name="date" required value="{{ today }}">
+                </div>
+                <div class="form-group">
+                    <label>🕐 Entry Time (HH:MM) *</label>
+                    <input type="time" name="entry_time" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📊 Index *</label>
+                    <select name="index" required>
+                        <option value="">— Select Index —</option>
+                        <option value="Nifty">📈 Nifty</option>
+                        <option value="Bank Nifty">🏦 Bank Nifty</option>
+                        <option value="Sensex">📉 Sensex</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🎯 Direction *</label>
+                    <select name="direction" required>
+                        <option value="">— Select Direction —</option>
+                        <option value="CE">📈 Call (CE)</option>
+                        <option value="PE">📉 Put (PE)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🔢 Strike *</label>
+                    <input type="number" name="strike" required placeholder="e.g. 22500">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. EXECUTION DATA -->
+        <div class="form-section">
+            <h3>⚡ 2. Execution Data</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>💰 Entry Premium (₹) *</label>
+                    <input type="number" step="0.01" name="entry_premium" required placeholder="e.g. 120.50">
+                </div>
+                <div class="form-group">
+                    <label>💵 Exit Premium (₹) *</label>
+                    <input type="number" step="0.01" name="exit_premium" required placeholder="e.g. 180.00">
+                </div>
+                <div class="form-group">
+                    <label>🕐 Exit Time (HH:MM) *</label>
+                    <input type="time" name="exit_time" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🛑 Initial SL Premium (₹) *</label>
+                    <input type="number" step="0.01" name="initial_sl_premium" required placeholder="e.g. 80.00">
+                </div>
+                <div class="form-group">
+                    <label>📦 Lot Size</label>
+                    <input type="number" value="1" disabled>
+                    <small>Fixed at 1 lot per your rules</small>
+                </div>
+            </div>
+
+            <div class="info-note">ℹ️ Points, P&L (₹), and R:R will be calculated automatically from your entry data.</div>
+        </div>
+
+        <!-- 3. TRADE MANAGEMENT -->
+        <div class="form-section">
+            <h3>🔧 3. Trade Management</h3>
+
+            <div class="checkbox-grid">
+                <label class="checkbox-item">
+                    <input type="checkbox" name="hit_1to1">
+                    <span>✅ Hit 1:1 R:R</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="sl_moved_to_entry">
+                    <span>🔒 Moved SL to entry (breakeven)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="hit_1to2">
+                    <span>✅ Hit 1:2 R:R</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="sl_moved_to_1r">
+                    <span>🔒 Moved SL to +1R</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="hit_1to3">
+                    <span>✅ Hit 1:3 R:R</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="booked_at_1to3">
+                    <span>🎯 Booked full profit at 1:3</span>
+                </label>
+            </div>
+
+            <div class="form-group" style="margin-top: 16px;">
+                <label>🚪 Exit Reason *</label>
+                <select name="exit_reason" required>
+                    <option value="">— Select Exit Reason —</option>
+                    <option value="Hit 1:3 - Booked Full">🎯 Hit 1:3 — Booked Full</option>
+                    <option value="Trailing SL Hit">🔄 Trailing SL Hit</option>
+                    <option value="Original SL Hit">🛑 Original SL Hit</option>
+                    <option value="Time-Based Exit">⏰ Time-Based Exit</option>
+                    <option value="Other">📝 Other</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 4. RE-ENTRY -->
+        <div class="form-section">
+            <h3>🔁 4. Re-Entry (If Applicable)</h3>
+
+            <label class="checkbox-item" style="width: fit-content;">
+                <input type="checkbox" name="is_reentry" id="reentryCheck">
+                <span>🔁 This is a re-entry (opposite direction after SL hit)</span>
+            </label>
+
+            <div class="form-group" id="linkedTradeGroup" style="display:none; margin-top: 14px;">
+                <label>🔗 Previous Trade ID (optional)</label>
+                <input type="number" name="linked_trade_id" placeholder="Enter the linked trade ID">
+            </div>
+        </div>
+
+        <!-- 5. POST-TRADE REVIEW -->
+        <div class="form-section">
+            <h3>🧠 5. Post-Trade Psychology Review</h3>
+
+            <label class="checkbox-item" style="margin-bottom: 16px;">
+                <input type="checkbox" name="followed_all_rules" checked>
+                <span>✅ I followed ALL my rules (entry, exit, position size)</span>
+            </label>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>😊 Emotion Before *</label>
+                    <select name="emotion_before" required>
+                        <option value="">— Select —</option>
+                        <option value="Confident">😎 Confident</option>
+                        <option value="Calm">😌 Calm</option>
+                        <option value="Anxious">😰 Anxious</option>
+                        <option value="FOMO">😤 FOMO</option>
+                        <option value="Revenge">😠 Revenge</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>😐 Emotion During *</label>
+                    <select name="emotion_during" required>
+                        <option value="">— Select —</option>
+                        <option value="Patient">🧘 Patient</option>
+                        <option value="Anxious">😰 Anxious</option>
+                        <option value="Fearful">😨 Fearful</option>
+                        <option value="Greedy">🤑 Greedy</option>
+                        <option value="Calm">😌 Calm</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>😊 Emotion After *</label>
+                    <select name="emotion_after" required>
+                        <option value="">— Select —</option>
+                        <option value="Satisfied">😊 Satisfied</option>
+                        <option value="Regretful">😔 Regretful</option>
+                        <option value="Overconfident">😤 Overconfident</option>
+                        <option value="Frustrated">😤 Frustrated</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>⚠️ Mistakes (if any)</label>
+                <input type="text" name="mistakes" placeholder="e.g. Moved SL early, FOMO entry, Exited too soon">
+            </div>
+
+            <div class="form-group">
+                <label>💡 Lesson Learned *</label>
+                <textarea name="lesson_learned" rows="3" required placeholder="What did you learn from this trade? Be specific."></textarea>
+            </div>
+        </div>
+
+        <!-- 6. CHART -->
+        <div class="form-section">
+            <h3>📸 6. Chart Reference</h3>
+
+            <!-- Tab buttons -->
+            <div class="chart-input-tabs">
+                <button type="button" class="chart-tab-btn active" onclick="switchChartTab('file', this)">
+                    📁 Upload Screenshot
+                </button>
+                <button type="button" class="chart-tab-btn" onclick="switchChartTab('url', this)">
+                    🔗 Paste Chart Link
+                </button>
+            </div>
+
+            <!-- File upload panel -->
+            <div class="chart-tab-panel active" id="tab-file">
+                <div class="form-group">
+                    <label>📁 Upload Chart Image</label>
+                    <input type="file" name="chart_file" accept="image/*">
+                    <small>Supports JPG, PNG, WebP</small>
+                </div>
+            </div>
+
+            <!-- URL panel -->
+            <div class="chart-tab-panel" id="tab-url">
+                <div class="form-group">
+                    <label>🔗 Chart Link (TradingView / Google Drive / Imgur etc.)</label>
+                    <input type="url" name="chart_url" placeholder="https://www.tradingview.com/chart/...">
+                    <small>Paste a shareable link to your chart screenshot</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary btn-large">💾 Save Trade</button>
+            <a href="{{ url_for('dashboard') }}" class="btn-secondary btn-large">✖ Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('reentryCheck').addEventListener('change', function() {
+    document.getElementById('linkedTradeGroup').style.display = this.checked ? 'block' : 'none';
+});
+
+function switchChartTab(tab, btn) {
+    document.querySelectorAll('.chart-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.chart-tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+}
+</script>
+{% endblock %}
