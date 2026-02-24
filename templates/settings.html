@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="settings">
+    <h2>⚙️ Settings</h2>
+
+    <!-- Trading Rules Settings -->
+    <form method="POST" class="settings-form">
+        <input type="hidden" name="action" value="save_settings">
+        <div class="form-section">
+            <h3>📏 Trading Rules</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🔢 Max Trades Per Day</label>
+                    <input type="number" name="max_trades_per_day" value="{{ settings.max_trades_per_day }}" min="1" max="5">
+                </div>
+                <div class="form-group">
+                    <label>🛑 Max Loss Per Day (₹)</label>
+                    <input type="number" name="max_loss_per_day" value="{{ settings.max_loss_per_day }}" min="0" step="500">
+                    <small>App will show STOP warning when this is hit</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>📖 Your ORB System Reference</h3>
+            <div class="system-info">
+                <p>⏰ <strong>Alert Candle:</strong> 9:25–9:30 AM (5-min candle)</p>
+                <p>🚀 <strong>Entry:</strong> After 9:30 AM, on breakout of alert candle high/low</p>
+                <p>🎯 <strong>Strike:</strong> Nearest strike, current week expiry</p>
+                <p>📦 <strong>Lot Size:</strong> Fixed at 1 lot only</p>
+                <p>✅ <strong>At 1:1 R:R:</strong> Move SL to entry (breakeven)</p>
+                <p>✅ <strong>At 1:2 R:R:</strong> Move SL to +1R</p>
+                <p>🏆 <strong>At 1:3 R:R:</strong> Book full profit — STOP for the day</p>
+                <p>🔁 <strong>Re-Entry:</strong> Opposite direction if SL hit</p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">💾 Save Settings</button>
+        </div>
+    </form>
+
+    <!-- Change Credentials -->
+    <form method="POST" class="settings-form" style="margin-top:24px;">
+        <input type="hidden" name="action" value="change_credentials">
+        <div class="form-section">
+            <h3>🔐 Change Login Credentials</h3>
+            <div class="system-info" style="margin-bottom:16px;">
+                <p>📧 <strong>Current Email:</strong> {{ user.email }}</p>
+            </div>
+
+            <div class="form-group">
+                <label>🔑 Current Password *</label>
+                <input type="password" name="current_password" required placeholder="Enter your current password">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📧 New Email (or Gmail)</label>
+                    <input type="email" name="new_email" placeholder="Leave blank to keep current">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🔒 New Password</label>
+                    <input type="password" name="new_password" placeholder="Leave blank to keep current">
+                </div>
+                <div class="form-group">
+                    <label>🔒 Confirm New Password</label>
+                    <input type="password" name="confirm_password" placeholder="Repeat new password">
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">🔐 Update Credentials</button>
+            <a href="{{ url_for('dashboard') }}" class="btn-secondary">← Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

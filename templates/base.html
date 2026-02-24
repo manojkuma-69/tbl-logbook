@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TBL_logbook{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <style>
+        /* ── BREACH ALARM OVERLAY ─────────────────────────────── */
+        #breachOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            animation: breachPulse 0.5s infinite alternate;
+        }
+        #breachOverlay.active { display: flex; }
+
+        @keyframes breachPulse {
+            0%   { background: rgba(220, 0, 0, 0.97); }
+            50%  { background: rgba(30, 30, 255, 0.92); }
+            100% { background: rgba(255, 255, 255, 0.97); }
+        }
+
+        .breach-content {
+            text-align: center;
+            animation: breachTextFlash 0.5s infinite alternate;
+        }
+        @keyframes breachTextFlash {
+            0%   { color: #fff; text-shadow: 0 0 40px #ff0000, 0 0 80px #ff0000; }
+            50%  { color: #ff0000; text-shadow: 0 0 40px #ffffff, 0 0 80px #0000ff; }
+            100% { color: #000; text-shadow: 0 0 40px #0000ff, 0 0 80px #ff0000; }
+        }
+
+        .breach-icon   { font-size: 96px; display: block; margin-bottom: 10px; }
+        .breach-title  { font-size: 52px; font-weight: 900; letter-spacing: 3px; margin: 0 0 10px; }
+        .breach-sub    { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+        .breach-amount { font-size: 36px; font-weight: 900; margin: 10px 0 30px; }
+        .breach-rule   { font-size: 18px; margin-bottom: 40px; font-weight: 600; opacity: 0.9; }
+
+        .breach-dismiss {
+            background: #fff;
+            color: #B91C1C;
+            border: none;
+            padding: 16px 48px;
+            font-size: 18px;
+            font-weight: 800;
+            border-radius: 50px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+        .breach-dismiss:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <!-- ── BREACH ALARM OVERLAY ───────────────────────────────── -->
+    <div id="breachOverlay">
+        <div class="breach-content">
+            <span class="breach-icon">🚨</span>
+            <div class="breach-title">⛔ BREACH ALARM ⛔</div>
+            <div class="breach-sub">DAILY LOSS LIMIT EXCEEDED</div>
+            <div class="breach-amount" id="breachAmount"></div>
+            <div class="breach-rule">🛑 STOP TRADING IMMEDIATELY — NO MORE TRADES TODAY 🛑</div>
+            <button class="breach-dismiss" onclick="dismissAlarm()">
+                ✋ I ACKNOWLEDGE — STOP TRADING
+            </button>
+        </div>
+    </div>
+
+    {% if session.get('user_id') %}
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">TBL_logbook</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}">🏠 Dashboard</a>
+                <a href="{{ url_for('add_trade') }}">➕ Add Trade</a>
+                <a href="{{ url_for('trade_history') }}">📋 History</a>
+                <a href="{{ url_for('analytics') }}">📊 Analytics</a>
+                <a href="{{ url_for('weekly_review') }}">📝 Weekly Review</a>
+                <a href="{{ url_for('settings') }}">⚙️ Settings</a>
+                <a href="{{ url_for('logout') }}" class="logout">🚪 Logout</a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- ── BREACH ALARM SCRIPT ───────────────────────────────── -->
+    <script>
+    // Pass breach data from server via data attributes on body
+    const BREACH_ACTIVE  = {{ 'true' if breach_alarm is defined and breach_alarm.active else 'false' }};
+    const BREACH_AMOUNT  = {{ breach_alarm.today_pnl if breach_alarm is defined and breach_alarm.today_pnl else 0 }};
+    const BREACH_LIMIT   = {{ breach_alarm.max_loss if breach_alarm is defined and breach_alarm.max_loss else 0 }};
+    const DISMISSED_KEY  = 'breach_dismissed_' + new Date().toDateString();
+
+    let alarmSound = null;
+
+    function createAlarmSound() {
+        // Generate breach alarm using Web Audio API — no file needed
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function beep(freq, start, duration, type='sawtooth') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.5, ctx.currentTime + start + duration);
+            gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + duration);
+        }
+
+        function playAlarmPattern() {
+            // Breach alarm pattern: urgent descending tones
+            beep(880, 0.0, 0.25, 'sawtooth');
+            beep(660, 0.3, 0.25, 'sawtooth');
+            beep(880, 0.6, 0.25, 'sawtooth');
+            beep(440, 0.9, 0.4,  'sawtooth');
+            beep(880, 1.5, 0.25, 'sawtooth');
+            beep(660, 1.8, 0.25, 'sawtooth');
+            beep(440, 2.1, 0.5,  'sawtooth');
+        }
+
+        playAlarmPattern();
+        return setInterval(playAlarmPattern, 3000);
+    }
+
+    function triggerAlarm(todayPnl, maxLoss) {
+        const dismissed = sessionStorage.getItem(DISMISSED_KEY);
+        if (dismissed) return;
+
+        document.getElementById('breachAmount').textContent =
+            '₹' + todayPnl.toLocaleString('en-IN') + ' loss  |  Limit: ₹' + maxLoss.toLocaleString('en-IN');
+        document.getElementById('breachOverlay').classList.add('active');
+
+        try { alarmSound = createAlarmSound(); } catch(e) {}
+    }
+
+    function dismissAlarm() {
+        document.getElementById('breachOverlay').classList.remove('active');
+        if (alarmSound) { clearInterval(alarmSound); alarmSound = null; }
+        sessionStorage.setItem(DISMISSED_KEY, '1');
+    }
+
+    // Trigger on page load if breach is active
+    window.addEventListener('load', function() {
+        if (BREACH_ACTIVE) {
+            triggerAlarm(Math.abs(BREACH_AMOUNT), BREACH_LIMIT);
+        }
+    });
+    </script>
+
+</body>
+</html>
