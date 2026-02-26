@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="add-trade">
+    <h2>🧘 Log Missed Trade — Good Discipline</h2>
+
+    <div class="alert" style="background:#F0FDF4;border:2px solid #10B981;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+        <strong style="color:#065F46;">✅ Excellent decision!</strong>
+        <p style="margin:4px 0 0;color:#047857;font-size:13px;">
+            Not entering a trade out of FOMO or bad setup is one of the best things a disciplined trader can do.
+            This will be tracked as a positive discipline action.
+        </p>
+    </div>
+
+    <form method="POST" class="trade-form">
+        <div class="form-section">
+            <h3>📋 What Did You See?</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📅 Date *</label>
+                    <input type="date" name="date" required value="{{ today }}">
+                </div>
+                <div class="form-group">
+                    <label>🕐 Time (when you saw the setup)</label>
+                    <input type="time" name="time">
+                </div>
+                <div class="form-group">
+                    <label>📊 Index</label>
+                    <select name="index">
+                        <option value="">— Select —</option>
+                        <option value="Nifty">📈 Nifty</option>
+                        <option value="Bank Nifty">🏦 Bank Nifty</option>
+                        <option value="Sensex">📉 Sensex</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>🎯 Why did you NOT enter? *</label>
+                <select name="reason" required>
+                    <option value="">— Select Reason —</option>
+                    <option value="Too late - missed entry">⏰ Too late — missed the entry</option>
+                    <option value="Setup not clear enough">🔍 Setup not clear enough</option>
+                    <option value="Already took 2 trades today">🛑 Already took 2 trades today</option>
+                    <option value="Felt FOMO - stayed out">🧘 Felt FOMO — but stayed out</option>
+                    <option value="Outside trading window">⏰ Outside my trading window</option>
+                    <option value="Not confident in setup">❓ Not confident in setup</option>
+                    <option value="Market conditions unclear">🌫️ Market conditions unclear</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>💡 Notes (optional)</label>
+                <textarea name="notes" rows="3" placeholder="What did you observe? What would have happened if you entered?"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary btn-large">✅ Log Missed Trade</button>
+            <a href="{{ url_for('dashboard') }}" class="btn-secondary btn-large">← Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

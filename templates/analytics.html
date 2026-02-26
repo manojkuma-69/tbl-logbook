@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="analytics">
+    <h2>📊 Analytics</h2>
+
+    {% if trades %}
+
+    <!-- Summary Stats -->
+    <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#6366F1,#8B5CF6);"></div>
+            <div class="stat-label">🔢 Total Trades</div>
+            <div class="stat-value-large">{{ stats.total_trades }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#0EA5E9,#06B6D4);"></div>
+            <div class="stat-label">🎯 Win Rate</div>
+            <div class="stat-value-large">{{ stats.win_rate }}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#10B981,#34D399);"></div>
+            <div class="stat-label">📐 Total Points</div>
+            <div class="stat-value-large {{ 'positive' if stats.total_points > 0 else 'negative' }}">{{ stats.total_points }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#F59E0B,#FBBF24);"></div>
+            <div class="stat-label">💰 Total P&L</div>
+            <div class="stat-value-large {{ 'positive' if stats.total_pnl > 0 else 'negative' }}">₹{{ stats.total_pnl }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#EF4444,#F87171);"></div>
+            <div class="stat-label">⚖️ Expectancy</div>
+            <div class="stat-value-large {{ 'positive' if stats.expectancy > 0 else 'negative' }}">{{ stats.expectancy }} pts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#8B5CF6,#A78BFA);"></div>
+            <div class="stat-label">🧠 Avg Discipline</div>
+            <div class="stat-value-large {{ 'positive' if stats.avg_discipline >= 70 else 'negative' }}">{{ stats.avg_discipline }}/100</div>
+        </div>
+    </div>
+
+    <!-- Discipline Streak -->
+    <div class="chart-section">
+        <h3>🔥 Discipline Streak</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#F59E0B,#FBBF24);"></div>
+                <div class="stat-label">🔥 Current Streak</div>
+                <div class="stat-value-large positive">{{ discipline_info.current_streak }} days</div>
+                <div class="stat-sub">{{ 'Keep going! 💪' if discipline_info.current_streak > 0 else 'Start fresh today' }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#10B981,#34D399);"></div>
+                <div class="stat-label">🏆 Longest Streak Ever</div>
+                <div class="stat-value-large positive">{{ discipline_info.longest_streak }} days</div>
+                <div class="stat-sub">Your personal best</div>
+            </div>
+        </div>
+        <div style="background:#FFFBEB;border:1px solid #F59E0B;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px;color:#92400E;">
+            💡 <strong>Streak rules:</strong> You keep your streak if every trade of the day followed all rules AND no revenge trades were taken.
+        </div>
+    </div>
+
+    <!-- Emotion Pattern Detection -->
+    {% if emotion_patterns %}
+    <div class="chart-section">
+        <h3>🧠 Emotion Pattern Detection</h3>
+        <p style="font-size:13px;color:#6B7280;margin-bottom:12px;">What you feel BEFORE a trade strongly predicts its outcome. Trade more when it shows green.</p>
+        <table class="comparison-table">
+            <thead>
+                <tr><th>😊 Emotion Before Trade</th><th>📊 Trades Taken</th><th>🎯 Win Rate</th><th>💡 Insight</th></tr>
+            </thead>
+            <tbody>
+                {% for ep in emotion_patterns %}
+                <tr style="background:{{ '#F0FDF4' if ep.good else '#FEF2F2' }};">
+                    <td><strong>{{ ep.emotion }}</strong></td>
+                    <td>{{ ep.trades }}</td>
+                    <td style="font-weight:700;color:{{ '#10B981' if ep.good else '#EF4444' }};">{{ ep.win_rate }}%</td>
+                    <td style="font-size:12px;">
+                        {% if ep.good %}
+                        ✅ Trade MORE when {{ ep.emotion }}
+                        {% else %}
+                        ⚠️ AVOID trading when {{ ep.emotion }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Equity Curve -->
+    <div class="chart-section">
+        <h3>📈 Equity Curve (Cumulative Points)</h3>
+        <canvas id="equityChart" style="max-height:260px;"></canvas>
+    </div>
+
+    {% if weekly_data %}
+    <div class="chart-section">
+        <h3>📅 Weekly P&L (₹)</h3>
+        <canvas id="weeklyChart" style="max-height:220px;"></canvas>
+    </div>
+    {% endif %}
+
+    {% if monthly_data %}
+    <div class="chart-section">
+        <h3>🗓️ Monthly P&L (₹)</h3>
+        <canvas id="monthlyChart" style="max-height:220px;"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Best Time to Trade -->
+    {% if time_slots %}
+    <div class="chart-section">
+        <h3>⏰ Best Time of Day to Trade &nbsp;<span style="color:var(--success);font-size:13px;">★ Best: {{ best_time }}</span></h3>
+        <table class="comparison-table">
+            <thead><tr><th>⏰ Time Slot</th><th>📊 Trades</th><th>🎯 Win Rate</th><th>💰 P&L (₹)</th></tr></thead>
+            <tbody>
+                {% for slot in time_slots %}
+                <tr class="{{ 'highlight-row' if slot.slot == best_time else '' }}">
+                    <td>{{ slot.slot }}</td>
+                    <td>{{ slot.trades }}</td>
+                    <td>{{ slot.win_rate }}%</td>
+                    <td class="{{ 'positive' if slot.pnl > 0 else 'negative' }}">₹{{ slot.pnl }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Re-entry -->
+    {% if stats.reentry_count > 0 %}
+    <div class="chart-section">
+        <h3>🔁 Re-Entry Performance</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#0EA5E9,#06B6D4);"></div>
+                <div class="stat-label">🔁 Total Re-Entries</div>
+                <div class="stat-value-large">{{ stats.reentry_count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#10B981,#34D399);"></div>
+                <div class="stat-label">🎯 Re-Entry Win Rate</div>
+                <div class="stat-value-large">{{ stats.reentry_win_rate }}%</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Export -->
+    <div class="chart-section">
+        <h3>📥 Export Your Data</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="{{ url_for('export_csv', period='week') }}" class="btn-secondary">📅 This Week (CSV/Excel)</a>
+            <a href="{{ url_for('export_csv', period='month') }}" class="btn-secondary">🗓️ This Month (CSV/Excel)</a>
+            <a href="{{ url_for('export_csv', period='all') }}" class="btn-secondary">📊 All Trades (CSV/Excel)</a>
+        </div>
+        <small style="color:#6B7280;margin-top:8px;display:block;">CSV files open directly in Microsoft Excel. Just double-click after downloading.</small>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>No trades to analyze yet.</p>
+        <a href="{{ url_for('add_trade') }}" class="btn-primary">➕ Add First Trade</a>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% if cumulative_points %}
+new Chart(document.getElementById('equityChart').getContext('2d'), {
+    type:'line',
+    data:{ labels:{{ cumulative_points|tojson }}.map(d=>d.date),
+           datasets:[{label:'Points', data:{{ cumulative_points|tojson }}.map(d=>d.points),
+               borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,0.08)',
+               tension:0.3, fill:true, pointRadius:4,
+               pointBackgroundColor:'#2563EB', pointBorderColor:'#fff', pointBorderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             plugins:{legend:{display:false}},
+             scales:{x:{grid:{display:false}},y:{grid:{color:'#F3F4F6'}}}}
+});
+{% endif %}
+{% if weekly_data %}
+const wData={{ weekly_data|tojson }};
+new Chart(document.getElementById('weeklyChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:wData.map(d=>d.week),
+           datasets:[{data:wData.map(d=>d.pnl),
+               backgroundColor:wData.map(d=>d.pnl>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)'),
+               borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             plugins:{legend:{display:false}},
+             scales:{x:{grid:{display:false}},y:{grid:{color:'#F3F4F6'}}}}
+});
+{% endif %}
+{% if monthly_data %}
+const mData={{ monthly_data|tojson }};
+new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:mData.map(d=>d.month),
+           datasets:[{data:mData.map(d=>d.pnl),
+               backgroundColor:mData.map(d=>d.pnl>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)'),
+               borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+             plugins:{legend:{display:false}},
+             scales:{x:{grid:{display:false}},y:{grid:{color:'#F3F4F6'}}}}
+});
+{% endif %}
+</script>
+{% endblock %}

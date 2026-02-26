@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+
+    {% if stats.loss_warning %}
+    <div class="alert" style="background:#FEE2E2;border:2px solid #EF4444;border-radius:12px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+        <span style="font-size:28px;">🛑</span>
+        <div>
+            <strong style="color:#B91C1C;font-size:15px;">STOP TRADING TODAY</strong>
+            <p style="margin:4px 0 0;color:#7F1D1D;font-size:13px;">You have hit your max daily loss of ₹{{ stats.max_loss }}. No more trades today.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <h2>📊 Dashboard</h2>
+
+    <!-- Today -->
+    <div class="today-card">
+        <div class="today-header">
+            <span>📅 Today's Performance</span>
+            <span style="font-size:13px;opacity:0.8;">{{ stats.today_trades }} trades | {{ stats.missed_today }} missed (good discipline)</span>
+        </div>
+        <div class="today-stats">
+            <div class="today-stat">
+                <div class="today-label">Points</div>
+                <div class="today-value {{ 'positive' if stats.today_points > 0 else 'negative' if stats.today_points < 0 else '' }}">{{ stats.today_points }}</div>
+            </div>
+            <div class="today-stat">
+                <div class="today-label">P&L</div>
+                <div class="today-value {{ 'positive' if stats.today_pnl > 0 else 'negative' if stats.today_pnl < 0 else '' }}">₹{{ stats.today_pnl }}</div>
+            </div>
+            <div class="today-stat">
+                <div class="today-label">Trades</div>
+                <div class="today-value">{{ stats.today_trades }}/2</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly / Monthly stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#2563EB,#0EA5E9);"></div>
+            <div class="stat-label">📅 This Week — Points</div>
+            <div class="stat-value-large {{ 'positive' if stats.week_points > 0 else 'negative' }}">{{ stats.week_points }}</div>
+            <div class="stat-sub {{ 'positive' if stats.week_pnl > 0 else 'negative' }}">₹{{ stats.week_pnl }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#10B981,#34D399);"></div>
+            <div class="stat-label">🗓️ This Month — Points</div>
+            <div class="stat-value-large {{ 'positive' if stats.month_points > 0 else 'negative' }}">{{ stats.month_points }}</div>
+            <div class="stat-sub {{ 'positive' if stats.month_pnl > 0 else 'negative' }}">₹{{ stats.month_pnl }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:linear-gradient(#8B5CF6,#A78BFA);"></div>
+            <div class="stat-label">📊 Total Trades</div>
+            <div class="stat-value-large">{{ stats.total_trades }}</div>
+            <div class="stat-sub">Target: {{ stats.target_trades }}</div>
+        </div>
+    </div>
+
+    <!-- Best Trades Ever -->
+    {% if best_pnl or best_rr or best_points %}
+    <div class="form-section" style="margin-top:24px;">
+        <h3>🏆 Best Trades Till Date</h3>
+        <div class="stats-grid">
+            {% if best_pnl %}
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#F59E0B,#FBBF24);"></div>
+                <div class="stat-label">💰 Highest P&L</div>
+                <div class="stat-value-large positive">₹{{ best_pnl.pnl_rupees|round(2) }}</div>
+                <div class="stat-sub">{{ best_pnl.date.strftime('%d %b %Y') }} — {{ best_pnl.index }}</div>
+                <a href="{{ url_for('trade_detail', trade_id=best_pnl.id) }}" class="btn-small" style="margin-top:8px;">🔍 View</a>
+            </div>
+            {% endif %}
+            {% if best_rr %}
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#10B981,#34D399);"></div>
+                <div class="stat-label">⚖️ Best R:R</div>
+                <div class="stat-value-large positive">{{ best_rr.rr_achieved }}:1</div>
+                <div class="stat-sub">{{ best_rr.date.strftime('%d %b %Y') }} — {{ best_rr.index }}</div>
+                <a href="{{ url_for('trade_detail', trade_id=best_rr.id) }}" class="btn-small" style="margin-top:8px;">🔍 View</a>
+            </div>
+            {% endif %}
+            {% if best_points %}
+            <div class="stat-card">
+                <div class="stat-card-accent" style="background:linear-gradient(#6366F1,#8B5CF6);"></div>
+                <div class="stat-label">📐 Most Points</div>
+                <div class="stat-value-large positive">{{ best_points.points_captured|round(1) }}</div>
+                <div class="stat-sub">{{ best_points.date.strftime('%d %b %Y') }} — {{ best_points.index }}</div>
+                <a href="{{ url_for('trade_detail', trade_id=best_points.id) }}" class="btn-small" style="margin-top:8px;">🔍 View</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="form-section" style="margin-top:24px;">
+        <h3>⚡ Quick Actions</h3>
+        <div class="quick-actions" style="flex-wrap:wrap;gap:10px;">
+            <a href="{{ url_for('add_trade') }}" class="btn-primary">➕ Log Trade</a>
+            <a href="{{ url_for('missed_trade') }}" class="btn-secondary" style="background:#F0FDF4;color:#065F46;border:1px solid #10B981;">🧘 Missed Trade (Good Discipline)</a>
+            <a href="{{ url_for('revenge_trade') }}" class="btn-secondary" style="background:#FEF2F2;color:#B91C1C;border:1px solid #EF4444;">⚠️ Revenge Trade</a>
+            <a href="{{ url_for('trade_history') }}" class="btn-secondary">📋 History</a>
+            <a href="{{ url_for('analytics') }}" class="btn-secondary">📊 Analytics</a>
+            <a href="{{ url_for('weekly_review') }}" class="btn-secondary">📝 Weekly Review</a>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="form-section" style="margin-top:16px;">
+        <h3>📥 Export Trades</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="{{ url_for('export_csv', period='week') }}" class="btn-secondary">📅 This Week (CSV)</a>
+            <a href="{{ url_for('export_csv', period='month') }}" class="btn-secondary">🗓️ This Month (CSV)</a>
+            <a href="{{ url_for('export_csv', period='all') }}" class="btn-secondary">📊 All Trades (CSV)</a>
+        </div>
+        <small style="color:#6B7280;margin-top:8px;display:block;">CSV files open directly in Microsoft Excel and Google Sheets.</small>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="trade-history">
+    <h2>📋 Trade History</h2>
+
+    <!-- Tabs -->
+    <div class="chart-input-tabs" style="margin-bottom:20px;">
+        <button type="button" class="chart-tab-btn active" onclick="showTab('regular',this)">📊 Regular Trades ({{ trades|length }})</button>
+        <button type="button" class="chart-tab-btn" onclick="showTab('missed',this)">🧘 Missed Trades ({{ missed_trades|length }})</button>
+        <button type="button" class="chart-tab-btn" onclick="showTab('revenge',this)">⚠️ Revenge Trades ({{ revenge_trades|length }})</button>
+    </div>
+
+    <!-- Regular Trades -->
+    <div id="tab-regular">
+    {% if trades %}
+    <div class="table-container">
+        <table class="trade-table">
+            <thead>
+                <tr>
+                    <th>📅 Date</th><th>🕐 Time</th><th>📊 Index</th><th>🎯 Strike</th>
+                    <th>↕️ Dir</th><th>📐 Points</th><th>💰 P&L</th><th>⚖️ R:R</th>
+                    <th>🧠 Disc.</th><th>⭐</th><th>🏆 Result</th><th>🔍</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trade in trades %}
+                <tr>
+                    <td>{{ trade.date.strftime('%d %b') }}</td>
+                    <td>{{ trade.entry_time }}</td>
+                    <td>{{ trade.index }}</td>
+                    <td style="font-family:var(--font-mono);font-size:13px;">{{ trade.strike }}</td>
+                    <td>
+                        {% if trade.direction == 'CE' %}<span class="badge badge-success">📈 CE</span>
+                        {% else %}<span class="badge badge-loss">📉 PE</span>{% endif %}
+                    </td>
+                    <td class="{{ 'positive' if trade.points_captured > 0 else 'negative' }}" style="font-family:var(--font-mono);">{{ trade.points_captured|round(1) }}</td>
+                    <td class="{{ 'positive' if trade.pnl_rupees > 0 else 'negative' }}" style="font-family:var(--font-mono);">₹{{ trade.pnl_rupees|round(2) }}</td>
+                    <td style="font-family:var(--font-mono);">{% if trade.result == 'Win' %}{{ trade.rr_achieved }}:1{% else %}—{% endif %}</td>
+                    <td><span style="font-size:12px;font-weight:600;color:{{ '#10B981' if trade.discipline_score >= 80 else '#F59E0B' if trade.discipline_score >= 60 else '#EF4444' }};">{{ trade.discipline_score }}/100</span></td>
+                    <td>{% if trade.trade_rating %}<span style="color:#F59E0B;">{{ '★' * trade.trade_rating }}</span>{% else %}—{% endif %}</td>
+                    <td>
+                        <span class="badge badge-{{ trade.result.lower() }}">
+                            {% if trade.result == 'Win' %}🏆{% elif trade.result == 'Loss' %}❌{% else %}➖{% endif %}
+                            {{ trade.result }}
+                        </span>
+                    </td>
+                    <td><a href="{{ url_for('trade_detail', trade_id=trade.id) }}" class="btn-small">🔍</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No trades yet.</p>
+        <a href="{{ url_for('add_trade') }}" class="btn-primary">➕ Log First Trade</a>
+    </div>
+    {% endif %}
+    </div>
+
+    <!-- Missed Trades -->
+    <div id="tab-missed" style="display:none;">
+    {% if missed_trades %}
+    <div style="background:#F0FDF4;border:1px solid #10B981;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#065F46;">
+        ✅ <strong>{{ missed_trades|length }} times</strong> you showed excellent discipline by NOT entering a bad setup.
+    </div>
+    <div class="table-container">
+        <table class="trade-table">
+            <thead><tr><th>📅 Date</th><th>🕐 Time</th><th>📊 Index</th><th>🎯 Why I Stayed Out</th><th>💡 Notes</th></tr></thead>
+            <tbody>
+                {% for mt in missed_trades %}
+                <tr>
+                    <td>{{ mt.date.strftime('%d %b %Y') }}</td>
+                    <td>{{ mt.time or '—' }}</td>
+                    <td>{{ mt.index or '—' }}</td>
+                    <td><span class="badge badge-success">{{ mt.reason }}</span></td>
+                    <td style="font-size:12px;color:#6B7280;">{{ mt.notes or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🧘</div>
+        <p>No missed trades logged yet.</p>
+        <a href="{{ url_for('missed_trade') }}" class="btn-primary">🧘 Log Missed Trade</a>
+    </div>
+    {% endif %}
+    </div>
+
+    <!-- Revenge Trades -->
+    <div id="tab-revenge" style="display:none;">
+    {% if revenge_trades %}
+    <div style="background:#FEF2F2;border:1px solid #EF4444;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#B91C1C;">
+        ⚠️ <strong>{{ revenge_trades|length }} revenge trades</strong> logged. Review these carefully — these are costing you money and discipline.
+    </div>
+    <div class="table-container">
+        <table class="trade-table">
+            <thead><tr><th>📅 Date</th><th>🕐 Time</th><th>📊 Index</th><th>📦 Qty</th><th>💰 P&L</th><th>🧠 Disc.</th><th>💭 Notes</th></tr></thead>
+            <tbody>
+                {% for rt in revenge_trades %}
+                <tr style="background:#FFF5F5;">
+                    <td>{{ rt.date.strftime('%d %b %Y') }}</td>
+                    <td>{{ rt.time or '—' }}</td>
+                    <td>{{ rt.index or '—' }}</td>
+                    <td>{{ rt.quantity }}</td>
+                    <td class="{{ 'positive' if rt.pnl_rupees > 0 else 'negative' }}" style="font-family:var(--font-mono);">₹{{ rt.pnl_rupees }}</td>
+                    <td><span style="color:#EF4444;font-weight:700;">{{ rt.discipline_score }}/100</span></td>
+                    <td style="font-size:12px;color:#6B7280;">{{ rt.notes or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <p>No revenge trades logged. Excellent discipline!</p>
+    </div>
+    {% endif %}
+    </div>
+
+</div>
+
+<script>
+function showTab(tab, btn) {
+    document.querySelectorAll('.chart-tab-btn').forEach(b => b.classList.remove('active'));
+    ['regular','missed','revenge'].forEach(t => {
+        document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+    });
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}
