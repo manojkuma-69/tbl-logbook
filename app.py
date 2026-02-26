@@ -363,4 +363,345 @@ def add_trade():
         emotion_after = request.form.get('emotion_after')
         mistakes = request.form.get('mistakes', '')
         lesson_learned = request.form.get('lesson_learned')
-        exit
+        exit_reason = request.form.get('exit_reason')
+        
+        # Chart
+        chart_image = None
+        if 'chart_file' in request.files:
+            file = request.files['chart_file']
+            if file and file.filename:
+                chart_image = base64.b64encode(file.read()).decode('utf-8')
+        
+        # Create trade
+        trade = Trade(
+            user_id=user_id,
+            date=date,
+            entry_time=entry_time,
+            index=index,
+            direction=direction,
+            strike=strike,
+            entry_premium=entry_premium,
+            exit_premium=exit_premium,
+            lot_size=lot_size,
+            initial_sl_premium=initial_sl_premium,
+            exit_time=exit_time,
+            initial_risk_points=initial_risk_points,
+            points_captured=points_captured,
+            pnl_rupees=pnl_rupees,
+            rr_achieved=rr_achieved,
+            result=result,
+            hit_1to1=hit_1to1,
+            sl_moved_to_entry=sl_moved_to_entry,
+            hit_1to2=hit_1to2,
+            sl_moved_to_1r=sl_moved_to_1r,
+            hit_1to3=hit_1to3,
+            booked_at_1to3=booked_at_1to3,
+            exit_reason=exit_reason,
+            is_reentry=is_reentry,
+            linked_trade_id=linked_trade_id,
+            followed_all_rules=followed_all_rules,
+            emotion_before=emotion_before,
+            emotion_during=emotion_during,
+            emotion_after=emotion_after,
+            mistakes=mistakes,
+            lesson_learned=lesson_learned,
+            chart_image=chart_image
+        )
+        
+        db.session.add(trade)
+        
+        # Update discipline streak if rules followed
+        if followed_all_rules:
+            update_discipline_streak(user_id, good_discipline=True)
+        else:
+            update_discipline_streak(user_id, good_discipline=False)
+        
+        db.session.commit()
+        
+        flash('Trade logged successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    # Check today's trade count
+    today = datetime.now().date()
+    today_count = Trade.query.filter_by(user_id=user_id, date=today).count()
+    
+    return render_template('add_trade.html', today_count=today_count)
+
+@app.route('/trade_history')
+def trade_history():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    trades = Trade.query.filter_by(user_id=user_id).order_by(Trade.date.desc(), Trade.entry_time.desc()).all()
+    
+    return render_template('trade_history.html', trades=trades)
+
+@app.route('/trade/<int:trade_id>')
+def trade_detail(trade_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    trade = Trade.query.get_or_404(trade_id)
+    if trade.user_id != session['user_id']:
+        return redirect(url_for('dashboard'))
+    
+    # Get linked trade if re-entry
+    linked_trade = None
+    if trade.is_reentry and trade.linked_trade_id:
+        linked_trade = Trade.query.get(trade.linked_trade_id)
+    
+    return render_template('trade_detail.html', trade=trade, linked_trade=linked_trade)
+
+@app.route('/trade/<int:trade_id>/delete', methods=['POST'])
+def delete_trade(trade_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    trade = Trade.query.get_or_404(trade_id)
+    if trade.user_id != session['user_id']:
+        return redirect(url_for('dashboard'))
+    
+    db.session.delete(trade)
+    db.session.commit()
+    
+    flash('Trade deleted successfully', 'success')
+    return redirect(url_for('trade_history'))
+
+@app.route('/analytics')
+def analytics():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    trades = Trade.query.filter_by(user_id=user_id).order_by(Trade.date).all()
+    
+    if not trades:
+        return render_template('analytics.html', trades=[], stats={}, backtest=None)
+    
+    # Calculate live stats
+    total_trades = len(trades)
+    wins = len([t for t in trades if t.result == 'Win'])
+    losses = len([t for t in trades if t.result == 'Loss'])
+    win_rate = round(wins / total_trades * 100, 1) if total_trades > 0 else 0
+    
+    total_points = sum(t.points_captured for t in trades)
+    expectancy = round(total_points / total_trades, 2) if total_trades > 0 else 0
+    
+    # R:R calculation
+    winning_trades = [t for t in trades if t.result == 'Win']
+    avg_rr = round(sum(t.rr_achieved for t in winning_trades) / len(winning_trades), 2) if winning_trades else 0
+    
+    # Re-entry stats
+    reentry_trades = [t for t in trades if t.is_reentry]
+    reentry_wins = len([t for t in reentry_trades if t.result == 'Win'])
+    reentry_win_rate = round(reentry_wins / len(reentry_trades) * 100, 1) if reentry_trades else 0
+    
+    stats = {
+        'total_trades': total_trades,
+        'win_rate': win_rate,
+        'avg_rr': avg_rr,
+        'total_points': round(total_points, 1),
+        'expectancy': expectancy,
+        'reentry_count': len(reentry_trades),
+        'reentry_win_rate': reentry_win_rate
+    }
+    
+    # Get backtest data
+    backtest = BacktestData.query.filter_by(user_id=user_id).first()
+    
+    # Prepare chart data
+    cumulative_points = []
+    running_total = 0
+    for trade in trades:
+        running_total += trade.points_captured
+        cumulative_points.append({
+            'date': trade.date.strftime('%Y-%m-%d'),
+            'points': round(running_total, 1)
+        })
+    
+    return render_template('analytics.html', trades=trades, stats=stats, backtest=backtest, 
+                         cumulative_points=cumulative_points)
+
+@app.route('/weekly_review', methods=['GET', 'POST'])
+def weekly_review():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    
+    if request.method == 'POST':
+        review = WeeklyReview(
+            user_id=user_id,
+            week_start=week_start,
+            best_trade_reason=request.form.get('best_trade_reason'),
+            worst_trade_reason=request.form.get('worst_trade_reason'),
+            main_mistake=request.form.get('main_mistake'),
+            next_week_focus=request.form.get('next_week_focus')
+        )
+        db.session.add(review)
+        db.session.commit()
+        flash('Weekly review saved!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    # Calculate weekly stats
+    week_trades = Trade.query.filter(Trade.user_id==user_id, Trade.date>=week_start).all()
+    
+    stats = {
+        'total_trades': len(week_trades),
+        'net_points': round(sum(t.points_captured for t in week_trades), 1),
+        'win_rate': round(len([t for t in week_trades if t.result=='Win']) / len(week_trades) * 100, 1) if week_trades else 0
+    }
+    
+    return render_template('weekly_review.html', stats=stats, week_trades=week_trades)
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    user_settings = Settings.query.filter_by(user_id=user_id).first()
+    
+    if not user_settings:
+        user_settings = Settings(user_id=user_id)
+        db.session.add(user_settings)
+        db.session.commit()
+    
+    if request.method == 'POST':
+        user_settings.max_trades_per_day = int(request.form.get('max_trades_per_day', 2))
+        db.session.commit()
+        flash('Settings saved!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('settings.html', settings=user_settings)
+
+# ========== NEW V4.0 ROUTES ==========
+
+@app.route('/log_missed_trade', methods=['GET', 'POST'])
+def log_missed_trade():
+    """Log a trade you saw but correctly avoided"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        missed = MissedTrade(
+            user_id=session['user_id'],
+            date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
+            time_noticed=request.form.get('time_noticed'),
+            reason_avoided=request.form.get('reason_avoided'),
+            setup_type=request.form.get('setup_type'),
+            notes=request.form.get('notes')
+        )
+        db.session.add(missed)
+        update_discipline_streak(session['user_id'], good_discipline=True)
+        db.session.commit()
+        flash('✅ Good discipline! Missed trade logged.', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('log_missed_trade.html')
+
+@app.route('/log_revenge_trade', methods=['GET', 'POST'])
+def log_revenge_trade():
+    """Quick entry for revenge trades"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        revenge = RevengeTrade(
+            user_id=session['user_id'],
+            date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
+            time=request.form.get('time'),
+            amount_pnl=float(request.form.get('amount_pnl')),
+            quantity=int(request.form.get('quantity')),
+            index=request.form.get('index'),
+            notes=request.form.get('notes'),
+            discipline_score=1
+        )
+        db.session.add(revenge)
+        update_discipline_streak(session['user_id'], good_discipline=False)
+        db.session.commit()
+        flash('⚠️ Revenge trade logged. Discipline score: 1/10', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('log_revenge_trade.html')
+
+@app.route('/export_trades')
+def export_trades():
+    """Export all trades to Excel"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    trades = Trade.query.filter_by(user_id=user_id).order_by(Trade.date).all()
+    
+    data = []
+    for t in trades:
+        data.append({
+            'Date': t.date.strftime('%Y-%m-%d'),
+            'Entry Time': t.entry_time,
+            'Index': t.index,
+            'Strike': t.strike,
+            'Direction': t.direction,
+            'Entry Premium': t.entry_premium,
+            'Exit Premium': t.exit_premium,
+            'Exit Time': t.exit_time,
+            'Points Captured': t.points_captured,
+            'P&L (₹)': t.pnl_rupees,
+            'R:R': t.rr_achieved,
+            'Result': t.result,
+            'Emotion Before': t.emotion_before,
+            'Emotion After': t.emotion_after,
+            'Followed Rules': 'Yes' if t.followed_all_rules else 'No',
+            'Mistakes': t.mistakes or '',
+            'Lesson': t.lesson_learned or ''
+        })
+    
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='All Trades', index=False)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'trading_journal_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    )
+
+def init_db():
+    with app.app_context():
+        db.create_all()
+        
+        # Create default user
+        if not User.query.filter_by(email='trader@tbl.com').first():
+            user = User(
+                email='trader@tbl.com',
+                password_hash=generate_password_hash('trader123')
+            )
+            db.session.add(user)
+            db.session.commit()
+            print("✓ Default user created: trader@tbl.com / trader123")
+            
+            # Add backtest data
+            backtest = BacktestData(
+                user_id=user.id,
+                total_trades=18,
+                win_rate=50.0,
+                avg_rr=3.83,
+                total_points=1593,
+                expectancy=88.5,
+                reentry_count=4,
+                reentry_wins=3,
+                reentry_win_rate=75.0
+            )
+            db.session.add(backtest)
+            db.session.commit()
+            print("✓ Backtest data loaded")
+
+if __name__ == '__main__':
+    init_db()
+    app.run(host='0.0.0.0', port=5000, debug=True)
