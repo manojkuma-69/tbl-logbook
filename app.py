@@ -7,7 +7,7 @@ import sqlite3, os, base64
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'tbl2026xK9mPqR7vNjW3'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/trading_journal.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////data/trading_journal.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
