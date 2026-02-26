@@ -1,0 +1,332 @@
+<!-- ADD THIS TO YOUR EXISTING dashboard.html -->
+<!-- Insert after the main stats grid, before action buttons -->
+
+<!-- DISCIPLINE STREAK TRACKER -->
+{% if discipline_streak %}
+<div class="streak-section">
+    <h3>🔥 Discipline Streak</h3>
+    <div class="streak-grid">
+        <div class="streak-card current">
+            <div class="streak-label">Current Streak</div>
+            <div class="streak-value">{{ discipline_streak.current_streak }} days</div>
+        </div>
+        <div class="streak-card longest">
+            <div class="streak-label">Longest Streak</div>
+            <div class="streak-value">{{ discipline_streak.longest_streak }} days</div>
+        </div>
+        <div class="streak-card broken">
+            <div class="streak-label">Times Broken</div>
+            <div class="streak-value">{{ discipline_streak.streak_broken_count }}</div>
+        </div>
+    </div>
+    {% if discipline_streak.current_streak >= 7 %}
+    <div class="streak-achievement">
+        🎉 Amazing! {{ discipline_streak.current_streak }}-day streak! Keep it going!
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- BEST TRADES DISPLAY -->
+{% if best_trades %}
+<div class="best-trades-section">
+    <h3>🏆 Best Trades Till Date</h3>
+    <div class="best-trades-grid">
+        <div class="best-trade-card">
+            <div class="best-trade-icon">💰</div>
+            <div class="best-trade-label">Highest ₹ Gain</div>
+            <div class="best-trade-value">₹{{ best_trades.rupees.pnl_rupees|round(2) }}</div>
+            <div class="best-trade-meta">{{ best_trades.rupees.date.strftime('%d %b') }} - {{ best_trades.rupees.index }} {{ best_trades.rupees.strike }}</div>
+        </div>
+        
+        <div class="best-trade-card">
+            <div class="best-trade-icon">📈</div>
+            <div class="best-trade-label">Best R:R</div>
+            <div class="best-trade-value">{{ best_trades.rr.rr_achieved }}:1</div>
+            <div class="best-trade-meta">{{ best_trades.rr.date.strftime('%d %b') }} - {{ best_trades.rr.points_captured|round(1) }} points</div>
+        </div>
+        
+        <div class="best-trade-card">
+            <div class="best-trade-icon">⚡</div>
+            <div class="best-trade-label">Most Points</div>
+            <div class="best-trade-value">{{ best_trades.points.points_captured|round(1) }} pts</div>
+            <div class="best-trade-meta">{{ best_trades.points.date.strftime('%d %b') }} - {{ best_trades.points.index }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- EMOTION PATTERN DETECTION -->
+{% if emotion_patterns and stats.total_trades >= 10 %}
+<div class="emotion-patterns-section">
+    <h3>🧠 Your Emotion Patterns ({{ stats.total_trades }} trades)</h3>
+    <div class="pattern-note">
+        <p>Based on your trades, here's how your emotions affect your results:</p>
+    </div>
+    <div class="emotion-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Emotion Before Trade</th>
+                    <th>Trades</th>
+                    <th>Win Rate</th>
+                    <th>Avg P&L</th>
+                    <th>Verdict</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emotion, stats in emotion_patterns.items() %}
+                <tr class="{{ 'good-emotion' if stats.win_rate >= 60 else 'bad-emotion' if stats.win_rate < 40 else '' }}">
+                    <td><strong>{{ emotion }}</strong></td>
+                    <td>{{ stats.total }}</td>
+                    <td>{{ stats.win_rate }}%</td>
+                    <td class="{{ 'positive' if stats.avg_pnl > 0 else 'negative' }}">₹{{ stats.avg_pnl }}</td>
+                    <td>
+                        {% if stats.win_rate >= 60 %}
+                        ✅ Trade MORE when {{ emotion }}
+                        {% elif stats.win_rate < 40 %}
+                        ❌ AVOID trading when {{ emotion }}
+                        {% else %}
+                        ⚠️ Neutral
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="pattern-insight">
+        <strong>💡 Key Insight:</strong> Your emotions directly impact your performance. Trade when calm, avoid when emotional!
+    </div>
+</div>
+{% endif %}
+
+<!-- DISCIPLINE STATS -->
+<div class="discipline-stats-section">
+    <h3>📊 Discipline Overview</h3>
+    <div class="discipline-grid">
+        <div class="discipline-stat">
+            <div class="discipline-icon">✅</div>
+            <div class="discipline-count">{{ missed_count }}</div>
+            <div class="discipline-label">Trades Avoided<br>(Good Discipline)</div>
+        </div>
+        <div class="discipline-stat danger">
+            <div class="discipline-icon">⚠️</div>
+            <div class="discipline-count">{{ revenge_count }}</div>
+            <div class="discipline-label">Revenge Trades<br>(Poor Discipline)</div>
+        </div>
+    </div>
+</div>
+
+<!-- UPDATED ACTION BUTTONS -->
+<div class="action-buttons">
+    <a href="{{ url_for('add_trade') }}" class="btn-primary btn-large">➕ Log Regular Trade</a>
+    <a href="{{ url_for('log_missed_trade') }}" class="btn-secondary btn-large">✅ Log Missed Trade (Good!)</a>
+    <a href="{{ url_for('log_revenge_trade') }}" class="btn-delete btn-large">⚠️ Log Revenge Trade</a>
+    <a href="{{ url_for('export_trades') }}" class="btn-secondary">📥 Export to Excel</a>
+    <a href="{{ url_for('trade_history') }}" class="btn-secondary">📋 View History</a>
+    <a href="{{ url_for('analytics') }}" class="btn-secondary">📊 Analytics</a>
+</div>
+
+<!-- ADD THIS CSS AT THE BOTTOM OF dashboard.html or in style.css -->
+<style>
+.streak-section,
+.best-trades-section,
+.emotion-patterns-section,
+.discipline-stats-section {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+}
+
+.streak-section h3,
+.best-trades-section h3,
+.emotion-patterns-section h3,
+.discipline-stats-section h3 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+.streak-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.streak-card {
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 2px solid;
+}
+
+.streak-card.current {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #3b82f6;
+}
+
+.streak-card.longest {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #10b981;
+}
+
+.streak-card.broken {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+}
+
+.streak-label {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.streak-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.streak-achievement {
+    margin-top: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #92400e;
+}
+
+.best-trades-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.best-trade-card {
+    padding: 25px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 2px solid #cbd5e1;
+    text-align: center;
+}
+
+.best-trade-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.best-trade-label {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.best-trade-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #10b981;
+    margin-bottom: 10px;
+}
+
+.best-trade-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.emotion-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.emotion-table th {
+    background: #f1f5f9;
+    padding: 12px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+.emotion-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+.emotion-table tr.good-emotion {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.emotion-table tr.bad-emotion {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.pattern-note,
+.pattern-insight {
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.pattern-note {
+    background: #f8fafc;
+    border-left: 4px solid #3b82f6;
+    color: #1e40af;
+}
+
+.pattern-insight {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-left: 4px solid #f59e0b;
+    color: #92400e;
+}
+
+.discipline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.discipline-stat {
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 2px solid #10b981;
+}
+
+.discipline-stat.danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+}
+
+.discipline-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.discipline-count {
+    font-size: 48px;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 10px;
+}
+
+.discipline-label {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+}
+</style>
